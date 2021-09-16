@@ -64,3 +64,16 @@ transform_mat_bombes <- function(mat_bombes, img = "images/boomboom.png", vide =
 }
 
 
+# 
+transform_mat_comptes <- function(mat_comptes) {
+  
+  mat_comptes %>% 
+    as.data.frame() %>% 
+    `colnames<-`(seq_len(ncol(.))) %>% 
+    `rownames<-`(seq_len(nrow(.))) %>% 
+    rownames_to_column() %>% 
+    pivot_longer(cols = -1) %>% 
+    mutate(across(c(rowname, name), ~ as.numeric(.x))) %>% 
+    mutate(observed = FALSE)
+  
+}
