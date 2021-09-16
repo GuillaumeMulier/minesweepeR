@@ -1,5 +1,6 @@
 
 
+# Create the grid with the bombs
 create_grid <- function(cote1, cote2, n_bombes) {
   
   # Set the number of bombs to the maximum if it exceeds the maximum value
@@ -19,6 +20,7 @@ create_grid <- function(cote1, cote2, n_bombes) {
 }
 
 
+# Return the matrix of the count of bombs in the neighbourhood of each field
 compte_voisins <- function(vec_bombes, cote1, cote2) {
   
   if (length(vec_bombes) != cote1 * cote2) stop(paste0("\"vec_bombes\" should be of length ", cote1 * cote2, "."), call. = FALSE) 
@@ -47,7 +49,8 @@ compte_voisins <- function(vec_bombes, cote1, cote2) {
 }
 
 
-transform_mat_tab <- function(mat_bombes, img = "images/boomboom.png", vide = "images/R.png") {
+# Transform the matrix of bombs into a plotable data.frame
+transform_mat_bombes <- function(mat_bombes, img = "images/boomboom.png", vide = "images/R.png") {
   
   {mat_bombes[, ] == "X"} %>% 
     as.data.frame() %>% 
@@ -59,3 +62,5 @@ transform_mat_tab <- function(mat_bombes, img = "images/boomboom.png", vide = "i
     mutate(value = ifelse(value, img, vide))
   
 }
+
+
