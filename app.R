@@ -5,6 +5,7 @@ library(shiny)
 library(tidyverse)
 library(ggimage)
 library(extrafont)
+library(ggtextures)
 
 # Function scripts
 source("Rscripts/draw.R")
@@ -24,10 +25,10 @@ ui <- fluidPage(
         h2(id = "titre-inputs", "Settings of the game"),
         column(3, 
                sliderInput(inputId = "lignes", label = "Number of desired rows:", 
-                            value = 10, min = 1, max = 50)),
+                            value = 10, min = 1, max = 80)),
         column(3, 
                sliderInput(inputId = "colonnes", label = "Number of desired columns:", 
-                            value = 10, min = 1, max = 80)),
+                            value = 10, min = 1, max = 50)),
         column(3, 
                sliderInput(inputId = "bombes", label = "Number of desired bombs:", 
                             value = 10, min = 1, max = 100)),
@@ -39,7 +40,7 @@ ui <- fluidPage(
     fluidRow(
         column(3,
                id = "infos-game",
-               htmlOutput(outputId = "info_game"),
+               textOutput(outputId = "info_game"),
                br(),
                htmlOutput(outputId = "field_to_clear"),
                actionButton(inputId = "clear", label = "Clear this field!")),
@@ -113,7 +114,8 @@ ui <- fluidPage(
              font-size: 1.5em;
              margin: 10px;
              font-family: Onyx;
-        }") # Put some space between the 2 parts of the app and custom the background
+        }"), # Put some space between the 2 parts of the app and custom the background
+        HTML("#demineur {margin-top: 0px}")
     )        
 )
 
@@ -172,16 +174,21 @@ server <- function(input, output) {
         }
     )
     
-    # observeEvent(
-    #     eventExpr = input$clear,
-    #     handlerExpr = {
-    #         rep(input$)
-    #     }
-    # )
+    texte_info <- eventReactive(
+        eventExpr = input$clear,
+        valueExpr = flood_fill(tab_donnees(), selected_col(), Nrows() + 1 - selected_row())
+    )
+    
+    observeEvent(
+        eventExpr = input$clear,
+        handlerExpr = {
+            df_donnees <- update_grid(df_donnees(), texte_info())
+        }
+    )
     
     output$field_to_clear <- renderText(selected_field())
     
-    output$table_data <- renderTable(donnees())
+    output$info_game <- renderText(texte_info())
     
     output$demineur <- renderPlot({
         draw_board(df_donnees(), selected_row(), selected_col())

@@ -138,3 +138,15 @@ flood_fill <- function(mat_comptes_voisins, abscisse, ordonnee) {
   return(revealed_fields)
   
 }
+
+
+# Update the dataset with revealed fields
+update_grid <- function(df_plot, liste_index) {
+  
+  df_plot$affich[df_plot$index_field %in% liste_index] <- TRUE
+  df_plot$remplissage[df_plot$index_field %in% liste_index] <- "#FFFFFF"
+  df_plot$couleur_affich[df_plot$index_field %in% liste_index] <- df_plot$couleur[df_plot$index_field %in% liste_index]
+  df_plot$image_affich[df_plot$index_field %in% liste_index] <- df_plot$image[df_plot$index_field %in% liste_index]
+  return(df_plot)
+  
+}

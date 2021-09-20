@@ -1,11 +1,15 @@
 
 
 # Install the packages
-pkg <- c("tidyverse", "ggimage", "shiny", "extrafont")
+pkg <- c("tidyverse", "ggimage", "shiny", "extrafont", "devtools", "ggtextures")
 setRepositories(ind = c(1, 2)) # Bioconductor for ggimage
 lapply(pkg,
        function (x) {
          if (!require(x, character.only = TRUE)) {
-           install.packages(x)
+           if (x != "ggtextures") {
+             install.packages(x)
+           } else {
+             devtools::install_github("clauswilke/ggtextures")
+           }
          }
        })
