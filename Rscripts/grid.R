@@ -13,17 +13,13 @@ create_grid <- function(cote1, cote2, n_bombes) {
   vec_bombes[bool_bombes] <- "X" 
   matrice <- matrix(vec_bombes, cote1, cote2)
   
-  return(list(matrice = matrice,
-              indexs = indexs, 
-              vec_bombes = vec_bombes))
+  return(matrice = matrice)
   
 }
 
 
 # Return the matrix of the count of bombs in the neighbourhood of each field
 compte_voisins <- function(vec_bombes, cote1, cote2) {
-  
-  if (length(vec_bombes) != cote1 * cote2) stop(paste0("\"vec_bombes\" should be of length ", cote1 * cote2, "."), call. = FALSE) 
   
   # Get the position in the matrix of the cell
   lignes <- ifelse(seq_along(vec_bombes) %% cote1 == 0, cote1, seq_along(vec_bombes) %% cote1)
@@ -49,31 +45,96 @@ compte_voisins <- function(vec_bombes, cote1, cote2) {
 }
 
 
-# Transform the matrix of bombs into a plotable data.frame
-transform_mat_bombes <- function(mat_bombes, img = "images/boomboom.png", vide = "images/R.png") {
+tableau_compte_init <- function(mat_bombes, mat_comptes, img = "images/boomboom.png", vide = "images/R.png") {
   
-  {mat_bombes[, ] == "X"} %>% 
+  # Transform the matrix of bombs into a plotable data.frame
+  df_bombes <- mat_bombes %>% 
     as.data.frame() %>% 
     `colnames<-`(seq_len(ncol(.))) %>% 
     `rownames<-`(seq_len(nrow(.))) %>% 
-    rownames_to_column() %>% 
-    pivot_longer(cols = -1) %>% 
-    mutate(across(c(rowname, name), ~ as.numeric(.x))) %>% 
-    mutate(value = ifelse(value, img, vide))
+    rownames_to_column(var = "ordonnee") %>% 
+    pivot_longer(cols = -1, names_to = "abscisse", values_to = "bombes") %>% 
+    mutate(across(c(abscisse, ordonnee), ~ as.numeric(.x))) %>% 
+    mutate(image = ifelse(bombes == "X", img, vide))
   
-}
-
-
-# 
-transform_mat_comptes <- function(mat_comptes) {
-  
-  mat_comptes %>% 
+  # Transform the matrix fo counts for bombs into a plotable data.frame
+  df_comptes <- mat_comptes %>% 
     as.data.frame() %>% 
     `colnames<-`(seq_len(ncol(.))) %>% 
     `rownames<-`(seq_len(nrow(.))) %>% 
-    rownames_to_column() %>% 
-    pivot_longer(cols = -1) %>% 
-    mutate(across(c(rowname, name), ~ as.numeric(.x))) %>% 
-    mutate(observed = FALSE)
+    rownames_to_column(var = "ordonnee") %>% 
+    pivot_longer(cols = -1, names_to = "abscisse", values_to = "decompte_bombes") %>% 
+    mutate(across(c(abscisse, ordonnee), ~ as.numeric(.x))) %>% 
+    mutate(affich = FALSE,
+           remplissage = "#E6D37F")
+  
+  # Transform the index matrix into the same data.frame structure
+  df_indexs <- matrix(seq_along(mat_bombes), nrow = dim(mat_bombes)[1], ncol = dim(mat_bombes)[2]) %>% 
+    as.data.frame() %>% 
+    `colnames<-`(seq_len(ncol(.))) %>% 
+    `rownames<-`(seq_len(nrow(.))) %>% 
+    rownames_to_column(var = "ordonnee") %>% 
+    pivot_longer(cols = -1, names_to = "abscisse", values_to = "index_field") %>% 
+    mutate(across(c(abscisse, ordonnee), ~ as.numeric(.x)))
+  
+  # Get all the tables together into the plot data
+  df_plot <- df_bombes %>% 
+    left_join(df_comptes, by = c("ordonnee", "abscisse")) %>% 
+    left_join(df_indexs, by = c("ordonnee", "abscisse")) %>% 
+    left_join(lookup_text, by = "decompte_bombes") %>% 
+    mutate(image_affich = ifelse(affich, image, vide),
+           couleur_affich = ifelse(affich, couleur, "transparent"))
+  
+  return(df_plot)
+  
+} 
+
+
+# Reveal the fields selected (with flood fill for 0s)
+flood_fill <- function(mat_comptes_voisins, abscisse, ordonnee) {
+  
+  nb_lignes <- nrow(mat_comptes_voisins)
+  nb_colonnes <- ncol(mat_comptes_voisins)
+  mat_indexs <- matrix(seq_along(mat_comptes_voisins), nrow = dim(mat_comptes_voisins)[1], ncol = dim(mat_comptes_voisins)[2])
+  
+  # Get the 4 neighbours of the interest field
+  voisins <- function(abscisse, ordonnee) {
+    matrice <- matrix(c(ordonnee, abscisse - 1, ordonnee + 1, abscisse, ordonnee, abscisse + 1, ordonnee - 1, abscisse), 
+                      ncol = 2, byrow = TRUE)
+    matrice <- matrice[matrice[, 1] > 0 & matrice[, 2] > 0, , drop = FALSE] # Remove out of bounds (line and columns of 0 or less)
+    matrice <- matrice[matrice[, 1] <= nb_lignes & matrice[, 2] <= nb_colonnes, , drop = FALSE] # Remove out of bounds (line and columns of more than mat_comptes_voisins)
+    return(matrice)
+  }
+  
+  # Get the 4 diagonal neighbours of the interest field
+  voisins_diago <- function(abscisse, ordonnee) {
+    matrice <- matrix(c(ordonnee + 1, abscisse - 1, ordonnee + 1, abscisse + 1, ordonnee - 1, abscisse + 1, ordonnee - 1, abscisse - 1),
+                      ncol = 2, byrow = TRUE)
+    matrice <- matrice[matrice[, 1] > 0 & matrice[, 2] > 0, , drop = FALSE] # Remove out of bounds (line and columns of 0 or less)
+    matrice <- matrice[matrice[, 1] <= nb_lignes & matrice[, 2] <= nb_colonnes, , drop = FALSE] # Remove out of bounds (line and columns of more than mat_comptes_voisins)
+    return(matrice)
+  }
+  
+  if (mat_comptes_voisins[ordonnee, abscisse] != 0) {
+    revealed_fields <- mat_indexs[ordonnee, abscisse]
+  } else {
+    ToTest <- mat_indexs[voisins(abscisse, ordonnee)]
+    Tested <- NULL
+    diago_case <- mat_indexs[voisins_diago(abscisse, ordonnee)]
+    revealed_fields <- mat_indexs[ordonnee, abscisse]
+    while(length(ToTest) > 0) {
+      EnTest <- ToTest[1]
+      Tested <- c(Tested, EnTest)
+      revealed_fields <- c(revealed_fields, EnTest)
+      if (mat_comptes_voisins[EnTest] == 0) {
+        diago_case <- union(diago_case, mat_indexs[voisins_diago(which(mat_indexs == EnTest, arr.ind = TRUE)[2], which(mat_indexs == EnTest, arr.ind = TRUE)[1])])
+        ToTest <- union(ToTest, setdiff(mat_indexs[voisins(which(mat_indexs == EnTest, arr.ind = TRUE)[2], which(mat_indexs == EnTest, arr.ind = TRUE)[1])], Tested))
+      }
+      ToTest <- setdiff(ToTest, EnTest)
+    }
+    revealed_fields <- union(revealed_fields, diago_case)
+  }
+  
+  return(revealed_fields)
   
 }
