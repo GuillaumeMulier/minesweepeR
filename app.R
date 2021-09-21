@@ -40,10 +40,10 @@ ui <- fluidPage(
     fluidRow(
         column(3,
                id = "infos-game",
-               textOutput(outputId = "info_game"),
+               htmlOutput(outputId = "info_game"),
                br(),
                htmlOutput(outputId = "field_to_clear"),
-               actionButton(inputId = "clear", label = "Clear this field!")),
+               actionButton(inputId = "clear", label = "Target?")),
         
         column(8,
                plotOutput(outputId = "demineur", click = "plot_click"))
@@ -122,9 +122,12 @@ ui <- fluidPage(
 # Server function
 server <- function(input, output) {
     
+    # Setting initial values for variables that monitor the game
     selected_field <- reactiveVal("No field selected!")
     selected_row <- reactiveVal(NULL)
     selected_col <- reactiveVal(NULL)
+    nb_revealed <- reactiveVal(0)
+    game_state <- reactiveVal("")
     
     # The maximum number of bombs is 1 bomb in each field of the board
     observeEvent(
@@ -153,6 +156,9 @@ server <- function(input, output) {
             selected_field("No field selected!")
             selected_row(NULL)
             selected_col(NULL)
+            nb_revealed(0)
+            game_state("")
+            updateActionButton(inputId = "clear", label = "Target?")
         }
     )
     
@@ -162,7 +168,13 @@ server <- function(input, output) {
         valueExpr = create_grid(Nrows(), Ncols(), Nbooms())
     )
     tab_donnees <- reactive(compte_voisins(as.character(donnees()), Nrows(), Ncols()))
-    df_donnees <- reactive(tableau_compte_init(donnees(), tab_donnees()))
+    df_donnees <- reactiveValues(tableau = NULL)
+    observeEvent(
+        eventExpr = tab_donnees(),
+        handlerExpr = {
+            df_donnees$tableau <- tableau_compte_init(donnees(), tab_donnees())
+        }
+    )
     
     # When you click on the screen, locate the targetted field
     observeEvent(
@@ -171,27 +183,57 @@ server <- function(input, output) {
             selected_field(paste0("Field (Line ", round(Nrows() + 1 - input$plot_click$y, 0), ";Column ", round(input$plot_click$x, 0), ")"))
             selected_row(round(input$plot_click$y, 0))
             selected_col(round(input$plot_click$x, 0))
+            if (df_donnees$tableau %>% 
+                filter(abscisse == selected_col(), ordonnee == Nrows() + 1 - selected_row()) %>% 
+                pull(affich)) {
+                updateActionButton(inputId = "clear", label = "Already cleared!")
+            } else {
+                updateActionButton(inputId = "clear", label = "Clear the field!")
+            }
+            
         }
     )
     
-    texte_info <- eventReactive(
-        eventExpr = input$clear,
-        valueExpr = flood_fill(tab_donnees(), selected_col(), Nrows() + 1 - selected_row())
-    )
-    
+    # Update the data with the cleared field
     observeEvent(
         eventExpr = input$clear,
         handlerExpr = {
-            df_donnees <- update_grid(df_donnees(), texte_info())
+            if (df_donnees$tableau %>% 
+                filter(abscisse == selected_col(), ordonnee == Nrows() + 1 - selected_row()) %>% 
+                pull(bombes) == "X") {
+                game_state("lose")
+            } else if (df_donnees$tableau %>% 
+                filter(abscisse == selected_col(), ordonnee == Nrows() + 1 - selected_row()) %>% 
+                pull(affich) == FALSE) {
+                df_donnees$tableau <- update_grid(df_donnees$tableau, remplir_lac(tab_donnees(), selected_col(), Nrows() + 1 - selected_row()))
+                selected_field("No field selected!")
+                selected_row(NULL)
+                selected_col(NULL)
+                nb_revealed(sum(df_donnees$tableau$affich))
+                updateActionButton(inputId = "clear", label = "Target?")
+                if (Nrows() * Ncols() - Nbooms() - nb_revealed() == 0) game_state("win")
+            }
         }
     )
     
+    # Indicating the selected field
     output$field_to_clear <- renderText(selected_field())
     
-    output$info_game <- renderText(texte_info())
+    # Display the informations of the ongoing game
+    output$info_game <- renderUI({
+        paste0(Nrows(), " by ", Ncols(), " grid<br/>",
+               "Careful of the ", Nbooms(), " bombs!<br/>",
+               Nrows() * Ncols() - Nbooms() - nb_revealed(), " more fields to clear!") %>% 
+            HTML()
+    })
     
+    # Drawing the plot
     output$demineur <- renderPlot({
-        draw_board(df_donnees(), selected_row(), selected_col())
+        if (game_state() == "") {
+            draw_board(df_donnees$tableau, selected_row(), selected_col())
+        } else {
+            draw_ending_screen(df_donnees$tableau, selected_row(), selected_col(), game_state())
+        }
     },
     height = function() 25 * Nrows())
     

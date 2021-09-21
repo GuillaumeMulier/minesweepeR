@@ -91,7 +91,7 @@ tableau_compte_init <- function(mat_bombes, mat_comptes, img = "images/boomboom.
 
 
 # Reveal the fields selected (with flood fill for 0s)
-flood_fill <- function(mat_comptes_voisins, abscisse, ordonnee) {
+remplir_lac <- function(mat_comptes_voisins, abscisse, ordonnee) {
   
   nb_lignes <- nrow(mat_comptes_voisins)
   nb_colonnes <- ncol(mat_comptes_voisins)
