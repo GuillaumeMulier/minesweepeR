@@ -55,7 +55,8 @@ tableau_compte_init <- function(mat_bombes, mat_comptes, img = "images/boomboom.
     rownames_to_column(var = "ordonnee") %>% 
     pivot_longer(cols = -1, names_to = "abscisse", values_to = "bombes") %>% 
     mutate(across(c(abscisse, ordonnee), ~ as.numeric(.x))) %>% 
-    mutate(image = ifelse(bombes == "X", img, vide))
+    mutate(image = ifelse(bombes == "X", img, vide),
+           drapeau = FALSE)
   
   # Transform the matrix fo counts for bombs into a plotable data.frame
   df_comptes <- mat_comptes %>% 

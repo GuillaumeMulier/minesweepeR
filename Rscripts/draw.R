@@ -1,7 +1,7 @@
 
 
 # Draw the grid (the main plotting function of the app)
-draw_board <- function(df_plot, selectY = NULL, selectX = NULL) {
+draw_board <- function(df_plot) {
   
   nb_lignes <- max(df_plot$ordonnee)
   nb_colonnes <- max(df_plot$abscisse)
@@ -17,12 +17,15 @@ draw_board <- function(df_plot, selectY = NULL, selectX = NULL) {
     scale_fill_identity() +
     scale_color_identity() +
     coord_fixed() +
-    theme(plot.margin=unit(c(0,0,0,0), "null"))
+    theme(plot.margin=unit(c(0, 0, 0, 0), "null"))
   
-  if (!is.null(selectX) & !is.null(selectY)) {
+  # Scale the image style relative to the greater side
+  if (nb_lignes > nb_colonnes) {
     graphe <- graphe +
-      annotate("rect", xmin = selectX - .5, xmax = selectX + .5, ymin = selectY - .5, ymax = selectY + .5, 
-               color = "#2A9421", fill = "#2A9421", size = 2, alpha = .3)
+      geom_image(data = df_plot %>% filter(drapeau), aes(image = "images/flag.jpg"), size = 1 / (1.2 * nb_lignes), by = "height", asp = nb_colonnes / nb_lignes)
+  } else {
+    graphe <- graphe +
+      geom_image(data = df_plot %>% filter(drapeau), aes(image = "images/flag.jpg"), size = 1 / (1.2 * nb_colonnes), by = "width", asp = nb_colonnes / nb_lignes)
   }
   
   return(graphe)
